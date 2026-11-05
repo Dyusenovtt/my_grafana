@@ -6,8 +6,8 @@ terraform {
 
 provider "yandex" {
   service_account_key_file = "key.json"
-  cloud_id                 = "b1gnb8ps1ogn1lagdmqk"
-  folder_id                = "b1gqdmccc2tqlgncgnr1"
+  cloud_id                 = "1"
+  folder_id                = "1"
 }
 
 resource "yandex_vpc_network" "mon_net" {
