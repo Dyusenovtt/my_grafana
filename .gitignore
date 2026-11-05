@@ -1,0 +1,9 @@
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+artifacts/
+key.json
+
+# Ansible
+*.retry
