@@ -1,0 +1,86 @@
+---
+- name: Monitoring stack (Docker Compose)
+  hosts: monitoring
+  become: true
+  tasks:
+    - name: Install docker.io
+      apt:
+        name: docker.io
+        state: present
+        update_cache: true
+
+    - name: Enable and start docker
+      systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Configure Docker registry mirror
+      copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "registry-mirrors": ["https://dh-mirror.gitverse.ru"]
+          }
+      notify: reload docker
+
+    - name: Create Docker CLI plugins directory
+      file:
+        path: /usr/local/lib/docker/cli-plugins
+        state: directory
+        mode: '0755'
+
+    - name: Download Docker Compose plugin binary
+      get_url:
+        url: https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64
+        dest: /usr/local/lib/docker/cli-plugins/docker-compose
+        mode: '0755'
+        timeout: 60
+
+    - name: Create monitoring dir
+      file:
+        path: /opt/monitoring
+        state: directory
+        mode: '0755'
+
+    - name: Copy prometheus.yml
+      template:
+        src: templates/prometheus.yml.j2
+        dest: /opt/monitoring/prometheus.yml
+        mode: '0644'
+
+    - name: Copy docker-compose.yml
+      template:
+        src: templates/docker-compose.yml.j2
+        dest: /opt/monitoring/docker-compose.yml
+        mode: '0644'
+
+    - name: Pull images
+      shell: docker compose pull
+      args:
+        chdir: /opt/monitoring
+      register: pull_result
+      retries: 3
+      delay: 5
+      until: pull_result.rc == 0
+
+    - name: Start stack
+      shell: docker compose up -d
+      args:
+        chdir: /opt/monitoring
+
+    - name: Show containers
+      shell: docker compose ps
+      args:
+        chdir: /opt/monitoring
+      register: compose_ps
+
+    - name: Print compose ps
+      debug:
+        msg: "{{ compose_ps.stdout_lines }}"
+
+  handlers:
+    - name: reload docker
+      systemd:
+        name: docker
+        state: reloaded
